@@ -1,0 +1,17 @@
+{
+  "records": [
+    {
+      "id": "1",
+      "schema": "v1",
+      "name": "Ada",
+      "amount": 10
+    },
+    {
+      "id": "2",
+      "schema": "v1",
+      "name": "Grace",
+      "amount": "bad"
+    }
+  ],
+  "target_schema": "v2"
+}
