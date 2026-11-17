@@ -1,0 +1,89 @@
+{
+  "run_id": "run-fixture-replay-0001",
+  "mode": "batch",
+  "batch_policy": "isolate",
+  "tenant_contracts": {
+    "tenant-a": {
+      "source_schema": {
+        "name": "profile",
+        "version": "v1",
+        "fields": {
+          "id": {"type": "string", "required": true},
+          "full_name": {"type": "string", "required": true},
+          "status": {"type": "string", "required": false},
+          "amount": {"type": "number", "required": true},
+          "currency": {"type": "string", "required": false}
+        }
+      },
+      "target_schema": {
+        "name": "profile",
+        "version": "v2",
+        "fields": {
+          "id": {"type": "string", "required": true},
+          "first_name": {"type": "string", "required": true},
+          "last_name": {"type": "string", "required": true},
+          "status": {
+            "type": "string",
+            "required": true,
+            "enum": ["active", "inactive", "closed"]
+          },
+          "amount_eur": {"type": "number", "required": true},
+          "currency": {
+            "type": "string",
+            "required": true,
+            "enum": ["USD", "EUR"]
+          }
+        }
+      },
+      "ruleset_version": "a-r4",
+      "rules": [
+        {"id": "keep-id", "op": "copy", "source": "id"},
+        {"id": "default-currency", "op": "default", "target": "currency", "value": "USD"},
+        {
+          "id": "split-name",
+          "op": "split",
+          "source": "full_name",
+          "targets": ["first_name", "last_name"],
+          "delimiter": " "
+        },
+        {
+          "id": "rename-status",
+          "op": "enum_map",
+          "source": "status",
+          "map": {"A": "active", "I": "inactive", "C": "closed", "X": "inactive"},
+          "on_unmapped": "quarantine"
+        },
+        {
+          "id": "usd-to-eur",
+          "op": "unit_convert",
+          "source": "amount",
+          "target": "amount_eur",
+          "from_unit": "USD",
+          "to_unit": "EUR",
+          "unit_field": "currency",
+          "rate": 0.9,
+          "precision": 2
+        }
+      ]
+    }
+  },
+  "events": [
+    {
+      "tenant_id": "tenant-a",
+      "event_id": "evt-a8",
+      "schema_version": "v1",
+      "payload": {
+        "id": "a8",
+        "full_name": "Ada Lovelace",
+        "status": "X",
+        "amount": 33,
+        "currency": "USD"
+      },
+      "replay": {
+        "expected_payload_digest": "sha256:207659d08fd9eb1881fe49ff388dd0afd87bf26d6a4524dd67d1c2fa53eb81eb",
+        "previous_ruleset_version": "a-r3",
+        "previous_run_id": "run-fixture-0001"
+      }
+    }
+  ]
+}

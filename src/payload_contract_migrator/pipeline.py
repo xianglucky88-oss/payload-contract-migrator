@@ -1,7 +1,14 @@
-from .parser import load_records
-from .engine import calculate
-from .report import build_result
+"""Orchestration boundary: parse the job, run the engine, always emit a report."""
+from typing import Any, Dict
 
-def run(payload: dict) -> dict:
-    records = load_records(payload)
-    return build_result('payload-contract-migrator', calculate(records, payload))
+from .engine import run_job
+from .parser import JobError, parse_job
+from .report import build_failure_report
+
+
+def run(payload: Any) -> Dict[str, Any]:
+    try:
+        job = parse_job(payload)
+    except JobError as exc:
+        return build_failure_report(payload, str(exc))
+    return run_job(job)

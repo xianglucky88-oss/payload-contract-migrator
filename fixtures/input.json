@@ -1,17 +1,273 @@
 {
-  "records": [
+  "run_id": "run-fixture-0001",
+  "mode": "batch",
+  "batch_policy": "isolate",
+  "tenant_contracts": {
+    "tenant-a": {
+      "source_schema": {
+        "name": "profile",
+        "version": "v1",
+        "fields": {
+          "id": {"type": "string", "required": true},
+          "full_name": {"type": "string", "required": true},
+          "status": {"type": "string", "required": false},
+          "amount": {"type": "number", "required": true},
+          "currency": {"type": "string", "required": false}
+        }
+      },
+      "target_schema": {
+        "name": "profile",
+        "version": "v2",
+        "fields": {
+          "id": {"type": "string", "required": true},
+          "first_name": {"type": "string", "required": true},
+          "last_name": {"type": "string", "required": true},
+          "status": {
+            "type": "string",
+            "required": true,
+            "enum": ["active", "inactive", "closed"]
+          },
+          "amount_eur": {"type": "number", "required": true},
+          "currency": {
+            "type": "string",
+            "required": true,
+            "enum": ["USD", "EUR"]
+          }
+        }
+      },
+      "ruleset_version": "a-r3",
+      "rules": [
+        {"id": "keep-id", "op": "copy", "source": "id"},
+        {"id": "default-currency", "op": "default", "target": "currency", "value": "USD"},
+        {
+          "id": "split-name",
+          "op": "split",
+          "source": "full_name",
+          "targets": ["first_name", "last_name"],
+          "delimiter": " "
+        },
+        {
+          "id": "rename-status",
+          "op": "enum_map",
+          "source": "status",
+          "map": {"A": "active", "I": "inactive", "C": "closed"},
+          "on_unmapped": "quarantine"
+        },
+        {
+          "id": "usd-to-eur",
+          "op": "unit_convert",
+          "source": "amount",
+          "target": "amount_eur",
+          "from_unit": "USD",
+          "to_unit": "EUR",
+          "unit_field": "currency",
+          "rate": 0.9,
+          "precision": 2
+        }
+      ]
+    },
+    "tenant-b": {
+      "source_schema": {
+        "name": "txn",
+        "version": "v1",
+        "fields": {
+          "id": {"type": "string", "required": true},
+          "given_name": {"type": "string", "required": true},
+          "family_name": {"type": "string", "required": true},
+          "state": {"type": "string", "required": true},
+          "total_cents": {"type": "integer", "required": true},
+          "ccy": {"type": "string", "required": true}
+        }
+      },
+      "target_schema": {
+        "name": "txn",
+        "version": "v2",
+        "fields": {
+          "id": {"type": "string", "required": true},
+          "full_name": {"type": "string", "required": true},
+          "state": {
+            "type": "string",
+            "required": true,
+            "enum": ["new", "done", "void"]
+          },
+          "total_eur": {"type": "number", "required": true},
+          "ccy": {"type": "string", "required": true, "enum": ["EUR"]}
+        }
+      },
+      "ruleset_version": "b-r1",
+      "rules": [
+        {"id": "keep-id", "op": "copy", "source": "id"},
+        {
+          "id": "merge-name",
+          "op": "merge",
+          "sources": ["given_name", "family_name"],
+          "target": "full_name",
+          "delimiter": " "
+        },
+        {
+          "id": "lower-state",
+          "op": "enum_map",
+          "source": "state",
+          "map": {"NEW": "new", "DONE": "done", "VOID": "void"},
+          "on_unmapped": "quarantine"
+        },
+        {
+          "id": "cents-to-eur",
+          "op": "unit_convert",
+          "source": "total_cents",
+          "target": "total_eur",
+          "from_unit": "EUR",
+          "to_unit": "EUR",
+          "unit_field": "ccy",
+          "rate": 0.01,
+          "precision": 2
+        }
+      ]
+    }
+  },
+  "events": [
     {
-      "id": "1",
-      "schema": "v1",
-      "name": "Ada",
-      "amount": 10
+      "tenant_id": "tenant-a",
+      "event_id": "evt-a1",
+      "schema_version": "v1",
+      "payload": {
+        "id": "a1",
+        "full_name": "Ada Lovelace",
+        "status": "A",
+        "amount": 10,
+        "currency": "USD"
+      }
     },
     {
-      "id": "2",
-      "schema": "v1",
-      "name": "Grace",
-      "amount": "bad"
+      "tenant_id": "tenant-b",
+      "event_id": "evt-b1",
+      "schema_version": "v1",
+      "payload": {
+        "id": "b1",
+        "given_name": "Linus",
+        "family_name": "Torvalds",
+        "state": "NEW",
+        "total_cents": 12345,
+        "ccy": "EUR"
+      }
+    },
+    {
+      "tenant_id": "tenant-a",
+      "event_id": "evt-a3",
+      "schema_version": "v2",
+      "ruleset_version": "a-r3",
+      "payload": {
+        "id": "a3",
+        "first_name": "Grace",
+        "last_name": "Hopper",
+        "status": "closed",
+        "amount_eur": 9.0,
+        "currency": "EUR"
+      }
+    },
+    {
+      "tenant_id": "tenant-a",
+      "event_id": "evt-a4",
+      "schema_version": "v1",
+      "payload": {
+        "id": "a4",
+        "full_name": "Alan Turing",
+        "status": "A",
+        "amount": 1,
+        "currency": "USD",
+        "nickname": "alan"
+      }
+    },
+    {
+      "tenant_id": "tenant-a",
+      "event_id": "evt-a5",
+      "schema_version": "v1",
+      "payload": {
+        "id": "a5",
+        "status": "A",
+        "amount": 1,
+        "currency": "USD"
+      }
+    },
+    {
+      "tenant_id": "tenant-a",
+      "event_id": "evt-a6",
+      "schema_version": "v1",
+      "payload": {
+        "id": "a6",
+        "full_name": "Katherine Johnson",
+        "status": "Z",
+        "amount": 3,
+        "currency": "USD"
+      }
+    },
+    {
+      "tenant_id": "tenant-a",
+      "event_id": "evt-a7",
+      "schema_version": "v1",
+      "payload": {
+        "id": "a7",
+        "full_name": "Margaret Hamilton",
+        "status": "A",
+        "amount": 3,
+        "currency": "JPY"
+      }
+    },
+    {
+      "tenant_id": "tenant-a",
+      "event_id": "evt-a8",
+      "schema_version": "v1",
+      "payload": {
+        "id": "a8",
+        "full_name": "Ada Lovelace",
+        "status": "X",
+        "amount": 33,
+        "currency": "USD"
+      }
+    },
+    {
+      "tenant_id": "tenant-a",
+      "event_id": "evt-a1",
+      "schema_version": "v1",
+      "payload": {
+        "id": "a1",
+        "full_name": "Ada Lovelace",
+        "status": "A",
+        "amount": 10,
+        "currency": "USD"
+      }
+    },
+    {
+      "tenant_id": "tenant-z",
+      "event_id": "evt-z1",
+      "schema_version": "v1",
+      "payload": {"id": "z1"}
+    },
+    {
+      "tenant_id": "tenant-a",
+      "event_id": "evt-a11",
+      "schema_version": "v9",
+      "payload": {
+        "id": "a11",
+        "full_name": "Ada Lovelace",
+        "status": "A",
+        "amount": 1,
+        "currency": "USD"
+      }
+    },
+    {
+      "tenant_id": "tenant-b",
+      "event_id": "evt-b2",
+      "schema_version": "v1",
+      "payload": {
+        "id": "b2",
+        "given_name": "Ken",
+        "family_name": "Thompson",
+        "state": "DONE",
+        "total_cents": 100,
+        "ccy": "EUR",
+        "unexpected": true
+      }
     }
-  ],
-  "target_schema": "v2"
+  ]
 }
